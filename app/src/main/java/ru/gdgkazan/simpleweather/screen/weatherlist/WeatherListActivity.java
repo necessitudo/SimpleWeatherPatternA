@@ -19,6 +19,7 @@ import ru.arturvasilov.sqlite.core.SQLite;
 import ru.gdgkazan.simpleweather.R;
 import ru.gdgkazan.simpleweather.data.model.City;
 import ru.gdgkazan.simpleweather.data.tables.RequestTable;
+import ru.gdgkazan.simpleweather.data.tables.WeatherCityTable;
 import ru.gdgkazan.simpleweather.network.NetworkService;
 import ru.gdgkazan.simpleweather.network.model.NetworkRequest;
 import ru.gdgkazan.simpleweather.network.model.Request;
@@ -107,12 +108,14 @@ public class WeatherListActivity extends AppCompatActivity implements CitiesAdap
 
     private void loadWeather() {
 
+        SQLite.get().registerObserver(WeatherCityTable.TABLE, this);
         Request request = new Request(NetworkRequest.CITY_LIST);
         NetworkService.start(this, request);
     }
 
     @Override
     public void onTableChanged() {
+        int a=0;
 
     }
 }

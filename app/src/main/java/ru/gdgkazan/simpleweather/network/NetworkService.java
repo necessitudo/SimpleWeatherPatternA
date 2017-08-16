@@ -7,10 +7,13 @@ import android.support.annotation.NonNull;
 import android.text.TextUtils;
 import android.util.Log;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 
 import okhttp3.ResponseBody;
@@ -19,8 +22,10 @@ import ru.arturvasilov.sqlite.core.Where;
 import ru.gdgkazan.simpleweather.BuildConfig;
 import ru.gdgkazan.simpleweather.data.GsonHolder;
 import ru.gdgkazan.simpleweather.data.model.City;
+import ru.gdgkazan.simpleweather.data.model.WeatherCity;
 import ru.gdgkazan.simpleweather.data.tables.CityTable;
 import ru.gdgkazan.simpleweather.data.tables.RequestTable;
+import ru.gdgkazan.simpleweather.data.tables.WeatherCityTable;
 import ru.gdgkazan.simpleweather.network.model.NetworkRequest;
 import ru.gdgkazan.simpleweather.network.model.Request;
 import ru.gdgkazan.simpleweather.network.model.RequestStatus;
@@ -114,10 +119,32 @@ public class NetworkService extends IntentService {
         }
 
 
-
     }
 
-    private void writeCityToBase() {
+    private boolean writeCityToBase() {
+
+        try{
+            SQLite.get().delete(WeatherCityTable.TABLE);//на время отладки
+            FileInputStream fstream = new FileInputStream(BuildConfig.PATH_TO_FILE_CITY_LIST);
+            BufferedReader br = new BufferedReader(new InputStreamReader(fstream));
+            String strLine;
+            int countIt = 1;
+            while ((strLine = br.readLine()) != null){
+
+                if (countIt!=1){
+                    String[] s = strLine.split("\t");
+                    WeatherCity weatherCity = new WeatherCity(Integer.parseInt(s[0]), s[1]);
+                    SQLite.get().insert(WeatherCityTable.TABLE, weatherCity);
+
+                }
+                countIt++;
+            }
+            SQLite.get().notifyTableChanged(WeatherCityTable.TABLE);
+            return true;
+        }catch (IOException e){
+            return false;
+        }
+
     }
 
     private boolean writeResponseBodyToDisk(ResponseBody body) {
@@ -149,7 +176,7 @@ public class NetworkService extends IntentService {
 
                         fileSizeDownloaded += read;
 
-                        Log.d(TAG, "file download: " + fileSizeDownloaded + " of " + fileSize);
+                        //Log.d(TAG, "file download: " + fileSizeDownloaded + " of " + fileSize);
                     }
 
                     outputStream.flush();
@@ -170,5 +197,6 @@ public class NetworkService extends IntentService {
                 return false;
             }
         }
-    }
+
+}
 
