@@ -28,6 +28,11 @@ public class City implements Serializable {
     public City() {
     }
 
+    public City(@NonNull String name, @NonNull Main main){
+        mName = name;
+        mMain = main;
+    }
+
     public City(@NonNull String name) {
         mName = name;
     }
