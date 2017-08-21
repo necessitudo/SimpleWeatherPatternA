@@ -3,6 +3,7 @@ package ru.gdgkazan.simpleweather.network;
 import android.app.IntentService;
 import android.content.Context;
 import android.content.Intent;
+import android.database.Cursor;
 import android.support.annotation.NonNull;
 import android.text.TextUtils;
 import android.util.Log;
@@ -15,6 +16,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.List;
 
 import okhttp3.ResponseBody;
 import ru.arturvasilov.sqlite.core.SQLite;
@@ -80,9 +83,23 @@ public class NetworkService extends IntentService {
 
         if (TextUtils.equals(NetworkRequest.CITY_LIST, request.getRequest())){
             executeAllCity(request);
+            executeAllCityWeather(request);
         }
     }
 
+    private void executeAllCityWeather(@NonNull Request request) {
+
+        String ids="";
+
+        List<WeatherCity> listWeather= SQLite.get().query(WeatherCityTable.TABLE);
+        for (WeatherCity w:listWeather){
+            ids=ids+w.getCityId()+",";
+        }
+
+
+
+
+    }
 
 
     private void executeCityRequest(@NonNull Request request, @NonNull String cityName) {
@@ -131,6 +148,9 @@ public class NetworkService extends IntentService {
             int countIt = 1;
             while ((strLine = br.readLine()) != null){
 
+                if (countIt==101){
+                    break;
+                }
                 if (countIt!=1){
                     String[] s = strLine.split("\t");
                     WeatherCity weatherCity = new WeatherCity(Integer.parseInt(s[0]), s[1]);

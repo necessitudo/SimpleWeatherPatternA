@@ -7,6 +7,7 @@ import retrofit2.Call;
 import retrofit2.http.GET;
 import retrofit2.http.Query;
 import ru.gdgkazan.simpleweather.data.model.City;
+import ru.gdgkazan.simpleweather.data.model.SetCityWeather;
 
 /**
  * @author Artur Vasilov
@@ -18,5 +19,8 @@ public interface WeatherService {
 
     @GET("help/city_list.txt")
     Call<ResponseBody> downloadFileWithFixedUrl();
+
+    @GET("data/2.5/weather?units=metric")
+    Call<SetCityWeather> getAllWeather(@NonNull @Query("id") String query);
 
 }
