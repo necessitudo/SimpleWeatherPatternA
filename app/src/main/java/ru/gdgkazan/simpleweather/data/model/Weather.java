@@ -17,6 +17,10 @@ public class Weather implements Serializable {
     @SerializedName("icon")
     private String mIcon;
 
+    public Weather(String main){
+        mMain = main;
+    }
+
     @NonNull
     public String getMain() {
         return mMain;

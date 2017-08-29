@@ -25,6 +25,7 @@ import ru.arturvasilov.sqlite.core.Where;
 import ru.gdgkazan.simpleweather.BuildConfig;
 import ru.gdgkazan.simpleweather.data.GsonHolder;
 import ru.gdgkazan.simpleweather.data.model.City;
+import ru.gdgkazan.simpleweather.data.model.SetCityWeather;
 import ru.gdgkazan.simpleweather.data.model.WeatherCity;
 import ru.gdgkazan.simpleweather.data.tables.CityTable;
 import ru.gdgkazan.simpleweather.data.tables.RequestTable;
@@ -69,36 +70,38 @@ public class NetworkService extends IntentService {
         Request savedRequest = SQLite.get().querySingle(RequestTable.TABLE,
                 Where.create().equalTo(RequestTable.REQUEST, request.getRequest()));
 
-        if (savedRequest != null && request.getStatus() == RequestStatus.IN_PROGRESS) {
-            return;
-        }
-        request.setStatus(RequestStatus.IN_PROGRESS);
-        SQLite.get().insert(RequestTable.TABLE, request);
-        SQLite.get().notifyTableChanged(RequestTable.TABLE);
 
         if (TextUtils.equals(NetworkRequest.CITY_WEATHER, request.getRequest())) {
+
+            if (savedRequest != null && request.getStatus() == RequestStatus.IN_PROGRESS) {
+                return;
+            }
+
+            setStatusRequest(request, RequestStatus.IN_PROGRESS);
+
             String cityName = intent.getStringExtra(CITY_NAME_KEY);
+
             executeCityRequest(request, cityName);
         }
 
         if (TextUtils.equals(NetworkRequest.CITY_LIST, request.getRequest())){
+
+            Log.d("Happy", "onHandleIntent");
+
+            if (savedRequest != null && (request.getStatus() == RequestStatus.IN_PROGRESS_LIST_CITY || request.getStatus() == RequestStatus.IN_PROGRESS_LIST_CITY_WEATHER)) {
+                return;
+            }
+
+            setStatusRequest(request, RequestStatus.IN_PROGRESS_LIST_CITY);
             executeAllCity(request);
+
+            Log.d("Happy", "IN_PROGRESS_LIST_CITY");
+
+            setStatusRequest(request, RequestStatus.IN_PROGRESS_LIST_CITY_WEATHER);
             executeAllCityWeather(request);
+
+            Log.d("Happy", "IN_PROGRESS_LIST_CITY_WEATHER");
         }
-    }
-
-    private void executeAllCityWeather(@NonNull Request request) {
-
-        String ids="";
-
-        List<WeatherCity> listWeather= SQLite.get().query(WeatherCityTable.TABLE);
-        for (WeatherCity w:listWeather){
-            ids=ids+w.getCityId()+",";
-        }
-
-
-
-
     }
 
 
@@ -123,14 +126,66 @@ public class NetworkService extends IntentService {
     private void executeAllCity(Request request) {
 
         try{
-            ResponseBody body = ApiFactory.getWeatherService(BuildConfig.API_ENDPOINT_ALLCITY).downloadFileWithFixedUrl().execute().body();
-            if (writeResponseBodyToDisk(body)==true) {
-                writeCityToBase();
-            }
+
+            List<WeatherCity> listWeather = SQLite.get().query(WeatherCityTable.TABLE);
+
+            if(listWeather.size()==0) {
+
+                Log.d("Happy", "prepared to download");
+                ResponseBody body = ApiFactory.getWeatherService(BuildConfig.API_ENDPOINT_ALLCITY)
+                        .downloadFileWithFixedUrl()
+                        .execute()
+                        .body();
+                if (writeResponseBodyToDisk(body)==true) {
+                    writeCityToBase();
+                }
+             }
         } catch (IOException e) {
             request.setStatus(RequestStatus.ERROR);
             request.setError(e.getMessage());
         } finally {
+            SQLite.get().insert(RequestTable.TABLE, request);
+            SQLite.get().notifyTableChanged(RequestTable.TABLE);
+        }
+
+    }
+
+    private void executeAllCityWeather(@NonNull Request request) {
+
+        //Проверка на то, пуста ли таблица
+        List<WeatherCity> listWeather = SQLite.get().query(WeatherCityTable.TABLE);
+
+        String ids = "";
+
+
+        for (WeatherCity w : listWeather) {
+
+            ids = ids + (!ids.equals("") ? "," : "") + w.getCityId();
+
+        }
+
+        try {
+            SetCityWeather setCityWeather = ApiFactory.getWeatherService(BuildConfig.API_ENDPOINT)
+                    .getAllWeather(ids)
+                    .execute()
+                    .body();
+
+            List<ru.gdgkazan.simpleweather.data.model.List> listCity = setCityWeather.getList();
+            SQLite.get().delete(CityTable.TABLE);
+
+            for (ru.gdgkazan.simpleweather.data.model.List currentCity : listCity) {
+
+                City city = new City(currentCity.getName(), currentCity.getMain());
+                SQLite.get().insert(CityTable.TABLE, city);
+
+            }
+
+            request.setStatus(RequestStatus.SUCCESS);
+
+        } catch (IOException e) {
+            request.setStatus(RequestStatus.ERROR);
+            request.setError(e.getMessage());
+        }finally{
             SQLite.get().insert(RequestTable.TABLE, request);
             SQLite.get().notifyTableChanged(RequestTable.TABLE);
         }
@@ -148,7 +203,7 @@ public class NetworkService extends IntentService {
             int countIt = 1;
             while ((strLine = br.readLine()) != null){
 
-                if (countIt==101){
+                if (countIt==16){
                     break;
                 }
                 if (countIt!=1){
@@ -217,6 +272,14 @@ public class NetworkService extends IntentService {
                 return false;
             }
         }
+
+    private void setStatusRequest(Request request, RequestStatus status){
+
+        request.setStatus(status);
+        SQLite.get().insert(RequestTable.TABLE, request);
+        SQLite.get().notifyTableChanged(RequestTable.TABLE);
+
+    }
 
 }
 

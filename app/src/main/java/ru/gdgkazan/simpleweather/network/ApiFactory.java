@@ -23,14 +23,14 @@ public final class ApiFactory {
     @NonNull
     public static WeatherService getWeatherService(@NonNull String endpoint) {
         WeatherService service = sService;
-        if (service == null) {
+        //if (service == null) {
             synchronized (ApiFactory.class) {
-                service = sService;
-                if (service == null) {
+                //service = sService;
+                //if (service == null) {
                     service = sService = buildRetrofit(endpoint).create(WeatherService.class);
-                }
+                //}
             }
-        }
+        //}
         return service;
     }
 

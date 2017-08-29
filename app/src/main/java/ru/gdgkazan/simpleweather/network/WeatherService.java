@@ -20,7 +20,7 @@ public interface WeatherService {
     @GET("help/city_list.txt")
     Call<ResponseBody> downloadFileWithFixedUrl();
 
-    @GET("data/2.5/weather?units=metric")
+    @GET("data/2.5/group?units=metric")
     Call<SetCityWeather> getAllWeather(@NonNull @Query("id") String query);
 
 }

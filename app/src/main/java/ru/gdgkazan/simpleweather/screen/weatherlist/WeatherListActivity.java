@@ -7,8 +7,10 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
+import android.util.Log;
 import android.view.View;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -16,17 +18,24 @@ import butterknife.BindView;
 import butterknife.ButterKnife;
 import ru.arturvasilov.sqlite.core.BasicTableObserver;
 import ru.arturvasilov.sqlite.core.SQLite;
+import ru.arturvasilov.sqlite.core.Where;
+import ru.arturvasilov.sqlite.rx.RxSQLite;
 import ru.gdgkazan.simpleweather.R;
 import ru.gdgkazan.simpleweather.data.model.City;
+import ru.gdgkazan.simpleweather.data.model.WeatherCity;
+import ru.gdgkazan.simpleweather.data.tables.CityTable;
 import ru.gdgkazan.simpleweather.data.tables.RequestTable;
 import ru.gdgkazan.simpleweather.data.tables.WeatherCityTable;
 import ru.gdgkazan.simpleweather.network.NetworkService;
 import ru.gdgkazan.simpleweather.network.model.NetworkRequest;
 import ru.gdgkazan.simpleweather.network.model.Request;
+import ru.gdgkazan.simpleweather.network.model.RequestStatus;
 import ru.gdgkazan.simpleweather.screen.general.LoadingDialog;
 import ru.gdgkazan.simpleweather.screen.general.LoadingView;
 import ru.gdgkazan.simpleweather.screen.general.SimpleDividerItemDecoration;
 import ru.gdgkazan.simpleweather.screen.weather.WeatherActivity;
+import ru.gdgkazan.simpleweather.utils.RxSchedulers;
+import rx.Observable;
 
 /**
  * @author Artur Vasilov
@@ -47,7 +56,16 @@ public class WeatherListActivity extends AppCompatActivity implements CitiesAdap
     private LoadingView mLoadingView;
     private List<City> cities;
 
+    @Nullable
+    private List<City> mCity;
+
     private static final String WEATHER_KEY = "weather";
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        SQLite.get().unregisterObserver(this);
+    }
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -58,8 +76,8 @@ public class WeatherListActivity extends AppCompatActivity implements CitiesAdap
 
         mRecyclerView.setLayoutManager(new LinearLayoutManager(this));
         mRecyclerView.addItemDecoration(new SimpleDividerItemDecoration(this, false));
-        mAdapter = new CitiesAdapter(getInitialCities(), this);
-        mRecyclerView.setAdapter(mAdapter);
+        //mAdapter = new CitiesAdapter(getInitialCities(), this);
+        //mRecyclerView.setAdapter(mAdapter);
         mLoadingView = LoadingDialog.view(getSupportFragmentManager());
 
         /**
@@ -108,14 +126,39 @@ public class WeatherListActivity extends AppCompatActivity implements CitiesAdap
 
     private void loadWeather() {
 
-        SQLite.get().registerObserver(WeatherCityTable.TABLE, this);
+        SQLite.get().registerObserver(RequestTable.TABLE, this);
         Request request = new Request(NetworkRequest.CITY_LIST);
         NetworkService.start(this, request);
     }
 
     @Override
     public void onTableChanged() {
-        int a=0;
 
+        Where where = Where.create().equalTo(RequestTable.REQUEST, NetworkRequest.CITY_WEATHER);
+        RxSQLite.get().querySingle(RequestTable.TABLE, where)
+                .compose(RxSchedulers.async())
+                .flatMap(request -> {
+                    if (request.getStatus() == RequestStatus.IN_PROGRESS_LIST_CITY || request.getStatus() == RequestStatus.IN_PROGRESS_LIST_CITY_WEATHER ) {
+                        mLoadingView.showLoadingIndicator();
+                        return Observable.empty();
+                    } else if (request.getStatus() == RequestStatus.ERROR) {
+                        return Observable.error(new IOException(request.getError()));
+                    }
+                    return RxSQLite.get().query(CityTable.TABLE).compose(RxSchedulers.async());
+                })
+                .subscribe(city -> {
+                    mCity = city;
+
+                    mAdapter = new CitiesAdapter(mCity, this);
+                    mRecyclerView.setAdapter(mAdapter);
+                    Log.d("Happy", "it works");
+                    //showWeather();
+                    mLoadingView.hideLoadingIndicator();
+                }, throwable -> {
+                    //showError();
+                    mLoadingView.hideLoadingIndicator();
+                });
     }
+
 }
+

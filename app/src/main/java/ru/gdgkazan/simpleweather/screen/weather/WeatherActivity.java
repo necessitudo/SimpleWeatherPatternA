@@ -7,6 +7,7 @@ import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
 
@@ -67,6 +68,10 @@ public class WeatherActivity extends AppCompatActivity implements BasicTableObse
     private LoadingView mLoadingView;
     private String mCityName;
 
+
+
+    private  Integer countIt=0;
+
     @NonNull
     public static Intent makeIntent(@NonNull Activity activity, @NonNull String cityName) {
         Intent intent = new Intent(activity, WeatherActivity.class);
@@ -114,6 +119,10 @@ public class WeatherActivity extends AppCompatActivity implements BasicTableObse
 
     @Override
     public void onTableChanged() {
+
+        Log.d("Happy", countIt.toString());
+        countIt++;
+
         Where where = Where.create().equalTo(RequestTable.REQUEST, NetworkRequest.CITY_WEATHER);
         RxSQLite.get().querySingle(RequestTable.TABLE, where)
                 .compose(RxSchedulers.async())

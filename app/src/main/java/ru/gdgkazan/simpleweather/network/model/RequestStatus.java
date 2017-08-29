@@ -6,5 +6,7 @@ package ru.gdgkazan.simpleweather.network.model;
 public enum RequestStatus {
     IN_PROGRESS,
     SUCCESS,
-    ERROR
+    ERROR,
+    IN_PROGRESS_LIST_CITY,
+    IN_PROGRESS_LIST_CITY_WEATHER,
 }
